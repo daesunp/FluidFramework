@@ -49,7 +49,8 @@ describe("Fuzz - Top-Level", () => {
 		// repair data content in places it already exists. This should be fixed by pending work to generate forest deltas
 		// which destroy trees for rollbacks. See AB#6456 for more information.
 		abort: 0,
-		fieldSelection: { optional: 1, required: 1, sequence: 3, recurse: 3 },
+		fieldSelection: { optional: 1, value: 1, sequence: 3, recurse: 3 },
+		schema: 1,
 	};
 	const generatorFactory = () => takeAsync(opsPerRun, makeOpGenerator(editGeneratorOpWeights));
 	/**
@@ -82,6 +83,7 @@ describe("Fuzz - Top-Level", () => {
 			// see AB#7030
 			skip: [37],
 			idCompressorFactory: deterministicIdCompressorFactory(0xdeadbeef),
+			skipMinimization: true,
 		};
 		createDDSFuzzSuite(model, options);
 	});

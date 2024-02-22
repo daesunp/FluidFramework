@@ -18,7 +18,12 @@ import {
 	jsonableTreeFromFieldCursor,
 	typeNameSymbol,
 } from "../../../feature-libraries/index.js";
-import { SharedTreeTestFactory, createTestUndoRedoStacks, validateTree } from "../../utils.js";
+import {
+	SharedTreeTestFactory,
+	createTestUndoRedoStacks,
+	toJsonableTree,
+	validateTree,
+} from "../../utils.js";
 import {
 	makeOpGenerator,
 	EditGeneratorOpWeights,
@@ -30,10 +35,10 @@ import {
 	createAnchors,
 	validateAnchors,
 	fuzzNode,
-	fuzzSchema,
 	failureDirectory,
 	RevertibleSharedTreeView,
 	deterministicIdCompressorFactory,
+	initialFuzzSchema,
 } from "./fuzzUtils.js";
 import { Operation } from "./operationTypes.js";
 
@@ -43,19 +48,19 @@ interface AnchorFuzzTestState extends FuzzTestState {
 }
 
 const config = {
-	schema: fuzzSchema,
+	schema: initialFuzzSchema,
 	// Setting the tree to have an initial value is more interesting for this targeted test than if it's empty:
 	// returning to an empty state is arguably "easier" than returning to a non-empty state after some undos.
 	initialTree: {
 		[typeNameSymbol]: fuzzNode.name,
-		sequenceChildren: [1, 2, 3],
-		requiredChild: {
+		sequence: [1, 2, 3],
+		valueField: {
 			[typeNameSymbol]: fuzzNode.name,
-			requiredChild: 0,
-			optionalChild: undefined,
-			sequenceChildren: [4, 5, 6],
+			valueField: 0,
+			optional: undefined,
+			sequence: [4, 5, 6],
 		},
-		optionalChild: undefined,
+		optional: undefined,
 	},
 } satisfies TreeContent;
 
@@ -80,10 +85,11 @@ describe("Fuzz - anchor stability", () => {
 			move: 2,
 			fieldSelection: {
 				optional: 1,
-				required: 1,
+				value: 1,
 				sequence: 2,
 				recurse: 1,
 			},
+			schema: 1,
 		};
 		const generatorFactory = () =>
 			takeAsync(opsPerRun, makeOpGenerator(editGeneratorOpWeights));
@@ -108,6 +114,7 @@ describe("Fuzz - anchor stability", () => {
 				config.initialTree,
 			).checkout;
 			tree.transaction.start();
+			const test = toJsonableTree(tree);
 			// These tests are hard coded to a single client, so this is fine.
 			initialState.anchors = [createAnchors(tree)];
 		});
@@ -134,6 +141,7 @@ describe("Fuzz - anchor stability", () => {
 			detachedStartOptions: { numOpsBeforeAttach: 0 },
 			clientJoinOptions: { maxNumberOfClients: 1, clientAddProbability: 0 },
 			idCompressorFactory: deterministicIdCompressorFactory(0xdeadbeef),
+			skipMinimization: true,
 		});
 	});
 	describe("Anchors are stable", () => {
@@ -146,7 +154,7 @@ describe("Fuzz - anchor stability", () => {
 			synchronizeTrees: 1,
 			fieldSelection: {
 				optional: 1,
-				required: 1,
+				value: 1,
 				sequence: 2,
 				recurse: 1,
 			},
@@ -193,6 +201,7 @@ describe("Fuzz - anchor stability", () => {
 
 		emitter.on("testEnd", (finalState: AnchorFuzzTestState) => {
 			const anchors = finalState.anchors ?? assert.fail("Anchors should be defined");
+			const tree = toJsonableTree(viewFromState(finalState, finalState.clients[0]).checkout);
 			for (const [i, client] of finalState.clients.entries()) {
 				validateAnchors(viewFromState(finalState, client).checkout, anchors[i], false);
 			}

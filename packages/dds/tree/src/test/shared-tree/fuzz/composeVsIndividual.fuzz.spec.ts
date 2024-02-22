@@ -70,6 +70,7 @@ const fuzzComposedVsIndividualReducer = combineReducersAsync<Operation, Branched
 		applySynchronizationOp(state);
 		return state;
 	},
+	schema: async (state) => {},
 });
 
 /**
@@ -90,7 +91,7 @@ describe("Fuzz - composed vs individual changes", () => {
 		move: 2,
 		fieldSelection: {
 			optional: 1,
-			required: 1,
+			value: 1,
 			sequence: 2,
 			recurse: 1,
 		},
